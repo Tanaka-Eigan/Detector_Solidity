@@ -31,46 +31,13 @@ contract Detector {
         address[] memory path = new address[](2);
         path[0] = WETH;
         path[1] = token;
-       
-        uint256 unit = msg.value / buyCount;
 
-        uint256 balance0 = IERC20(token).balanceOf(address(this));
-     
-        uniswapRouter.swapExactETHForTokens{ value: unit }(
-            0, // Accept any amount of tokens
-            path,
-            address(this),
-            block.timestamp + 15
-        );
-
-        uint256 balance1 = IERC20(token).balanceOf(address(this));
-
-        for (uint256 i = 1; i < buyCount; i ++) {
-            uniswapRouter.swapExactETHForTokens{ value: unit }(
-                0, // Accept any amount of tokens
-                path,
-                address(this),
-                block.timestamp + 15
-            );
+        for(uint256 i = 0 ; i < buyCount; i ++) {
+            try uniswapRouter.swapExactETHForTokensSupportingFeeOnTransferTokens{value: msg.value / buyCount}(0, path, address(this), block.timestamp + 1){}
+            catch{ return true; }
         }
 
-        uint256 finalBalance = IERC20(token).balanceOf(address(this));
-       
-        // Calculate transfer delay condition
-        uint256 deviation = (balance1 - balance0) * 5 * buyCount * (buyCount - 1) / 2 / 100;
-        int delta = int((balance1 - balance0) * buyCount - (finalBalance - balance0));
-        delta = delta <= 0 ? -delta : delta;
-
-        emit Log("deviation", uint256(deviation));
-        emit Log("delta", uint256(delta));
-
-        if (uint256(delta) <= deviation) {
-            // No transfer delay
-            return false;
-        } else {
-            // Transfer delay detected
-            return true;
-        }
+        return false;
     }
 
     function detectBuyFee(address token) external payable returns (uint256, uint256) {
